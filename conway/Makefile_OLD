@@ -1,0 +1,5 @@
+a.out: conway_serial.c
+	gcc  -std=c99 -g -lGL -lGLU -lglut -lm conway_serial.c
+
+clean:
+	rm a.out

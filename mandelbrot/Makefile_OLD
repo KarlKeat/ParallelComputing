@@ -1,0 +1,5 @@
+a.out: mandelbrot_display.c
+	gcc -g -lGL -lGLU -lglut -lm mandelbrot_display.c
+
+clean:
+	rm a.out

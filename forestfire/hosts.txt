@@ -1,0 +1,3 @@
+localhost slots=4
+foxmccloud slots=4
+samus slots=4

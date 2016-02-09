@@ -1,0 +1,3 @@
+localhost slots = 4
+yoshi slots = 4
+snake slots = 4
