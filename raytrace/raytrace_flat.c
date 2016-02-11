@@ -14,9 +14,9 @@ typedef struct triple
 
 typedef struct color
 {
-  char r;
-  char g;
-  char b;
+  int r;
+  int g;
+  int b;
 }color;
 
 typedef struct sphere
@@ -147,7 +147,8 @@ void printSphere(sphere s)
 int main(int argc, int* argv)
 {
   init();
-  double render[XRES][YRES];
+  double render[XRES][YRES] = {0};
+  color colorArr[XRES][YRES] = {0};
 
   int i;
   for(i = 0; i < 4; i++)
@@ -163,7 +164,12 @@ int main(int argc, int* argv)
         triple temp = {x, y, 0};
         //printf("%d\n", ypx);
         //printf("%f\n", willCollide(arr[i], temp));
-        render[xpx][ypx] = min(render[xpx][ypx], willCollide(arr[i], temp));
+        double result = willCollide(arr[i], temp);
+        if(render[xpx][ypx] > result)
+        {
+          render[xpx][ypx] = result;
+          colorArr[xpx][ypx] = arr[i].c;
+        }
         ypx++;
       }
       ypx = 0;
@@ -171,6 +177,25 @@ int main(int argc, int* argv)
     }
 
   }
+
+  FILE* fout = fopen( "img.ppm" , "w" ) ;
+  //
+  fprintf( fout , "P3\n" ) ;
+  fprintf( fout , "%d %d\n" , 720 , 480 ) ;
+  fprintf( fout , "255\n" ) ;
+  //
+  int x, y;
+  for( x = 0 ; x < 720 ; x++ )
+  {
+     for( y = 0 ; y < 480 ; y++)
+     {
+        fprintf( fout , " %d %d %d\n" ,
+         colorArr[x][y].r , colorArr[x][y].g , colorArr[x][y].b ) ;
+     }
+  }
+  close( fout ) ;
+  //
+  return 0 ;
 
 
 }
