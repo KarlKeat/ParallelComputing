@@ -2,9 +2,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define XRES 640
+#define XRES 720
 #define YRES 480
-#define PIXSCALE 320
 
 typedef struct triple
 {
@@ -49,15 +48,48 @@ double magnitude(triple t)
   return sqrt(pow(t.x,2) + pow(t.y,2) + pow(t.z,2));
 }
 
-void willCollide(sphere s, triple pix)
+double willCollide(sphere s, triple pix)
 {
   triple t = {0};
   diff(&t, pix, eye);
-  double mag = magnitude(t);
-  t.x /= mag;
-  t.y /= mag;
-  t.z /= mag;
+  double mag = 1/magnitude(t);
+  t.x *= mag;
+  t.y *= mag;
+  t.z *= mag;
 
+  double b = 2*(t.x*(pix.x-s.x)+t.y*(pix.y-s.y)+t.z*(pix.z-s.z));
+  double c = pow(pix.x-s.x,2)+pow(pix.y-s.y,2)+pow(pix.z-s.z,2)-pow(s.r,2);
+  double discriminant = pow(b,2) - 4*c;
+
+  if(discriminant >= 0)
+  {
+    double r1 = (-b - sqrt(pow(b,2)-4*c))/2;
+    double r2 = (-b + sqrt(pow(b,2)-4*c))/2;
+    triple ray = {0};
+    if(r1 < r2 && r1 > 0)
+    {
+      ray.x = pix.x + r1*t.x;
+      ray.y = pix.y + r1*t.y;
+      ray.z = pix.z + r1*t.z;
+    }
+    else
+    {
+      ray.x = pix.x + r2*t.x;
+      ray.y = pix.y + r2*t.y;
+      ray.z = pix.z + r2*t.z;
+    }
+    return magnitude(ray);
+  }
+  else
+    return -1;
+}
+
+double min(double a, double b)
+{
+  if(a < b)
+    return a;
+  else
+    return b;
 }
 
 struct sphere arr[4] = {0};
@@ -69,9 +101,9 @@ void init()
    a.y = -20000.00 ; // the floor
    a.z =      0.50 ;
    a.r =  20000.25 ;
-   a.c.r =    205    ; // color is Peru
-   a.c.g =    133    ;
-   a.c.b =     63    ;
+   a.c.r =    205  ; // color is Peru
+   a.c.g =    133  ;
+   a.c.b =     63  ;
 
    //
    sphere b = {0};
@@ -115,9 +147,30 @@ void printSphere(sphere s)
 int main(int argc, int* argv)
 {
   init();
+  double render[XRES][YRES];
+
   int i;
   for(i = 0; i < 4; i++)
   {
-    printSphere(arr[i]);
+    //printSphere(arr[i]);
+    int xpx = 0;
+    int ypx = 0;
+    double x, y;
+    for(x = 0; x < 1.5; x+=1.0/480)
+    {
+      for(y = 0; y < 1; y+=1.0/480)
+      {
+        triple temp = {x, y, 0};
+        //printf("%d\n", ypx);
+        //printf("%f\n", willCollide(arr[i], temp));
+        render[xpx][ypx] = min(render[xpx][ypx], willCollide(arr[i], temp));
+        ypx++;
+      }
+      ypx = 0;
+      xpx++;
+    }
+
   }
+
+
 }
