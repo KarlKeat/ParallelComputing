@@ -52,19 +52,20 @@ double willCollide(sphere s, triple pix)
 {
   triple t = {0};
   diff(&t, pix, eye);
-  double mag = 1/magnitude(t);
-  t.x *= mag;
-  t.y *= mag;
-  t.z *= mag;
+  double mag = magnitude(t);
+  t.x /= mag;
+  t.y /= mag;
+  t.z /= mag;
 
-  double b = 2*(t.x*(pix.x-s.x)+t.y*(pix.y-s.y)+t.z*(pix.z-s.z));
-  double c = pow(pix.x-s.x,2)+pow(pix.y-s.y,2)+pow(pix.z-s.z,2)-pow(s.r,2);
+  double b = 2*(t.x*(eye.x-s.x)+t.y*(eye.y-s.y)+t.z*(eye.z-s.z));
+  double c = pow(eye.x-s.x,2)+pow(eye.y-s.y,2)+pow(eye.z-s.z,2)-pow(s.r,2);
+
   double discriminant = pow(b,2) - 4*c;
 
   if(discriminant >= 0)
   {
-    double r1 = (-b - sqrt(pow(b,2)-4*c))/2;
-    double r2 = (-b + sqrt(pow(b,2)-4*c))/2;
+    double r1 = (-b - sqrt(pow(b,2)-4*c))/2.0;
+    double r2 = (-b + sqrt(pow(b,2)-4*c))/2.0;
     triple ray = {0};
     if(r1 < r2 && r1 > 0)
     {
@@ -149,6 +150,7 @@ int main(int argc, int* argv)
   init();
   double render[XRES][YRES] = {0};
   color colorArr[XRES][YRES] = {0};
+  color blank = {0, 0, 0};
 
   int i;
   for(i = 0; i < 4; i++)
@@ -163,9 +165,8 @@ int main(int argc, int* argv)
       {
         triple temp = {x, y, 0};
         //printf("%d\n", ypx);
-        //printf("%f\n", willCollide(arr[i], temp));
         double result = willCollide(arr[i], temp);
-        if(render[xpx][ypx] > result)
+        if(result != -1 && (render[xpx][ypx] == 0.0 || result < render[xpx][ypx]))
         {
           render[xpx][ypx] = result;
           colorArr[xpx][ypx] = arr[i].c;
@@ -173,18 +174,19 @@ int main(int argc, int* argv)
         ypx++;
       }
       ypx = 0;
+      //printf("%d\n", xpx);
       xpx++;
     }
 
   }
 
+  int x,y;
   FILE* fout = fopen( "img.ppm" , "w" ) ;
   //
   fprintf( fout , "P3\n" ) ;
   fprintf( fout , "%d %d\n" , 720 , 480 ) ;
   fprintf( fout , "255\n" ) ;
   //
-  int x, y;
   for( x = 0 ; x < 720 ; x++ )
   {
      for( y = 0 ; y < 480 ; y++)
