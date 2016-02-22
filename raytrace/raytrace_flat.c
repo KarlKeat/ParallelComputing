@@ -10,7 +10,7 @@ typedef struct triple
   double x ;
   double y ;
   double z ;
-} triple;
+}triple;
 
 typedef struct color
 {
@@ -48,17 +48,17 @@ double magnitude(triple t)
   return sqrt(pow(t.x,2) + pow(t.y,2) + pow(t.z,2));
 }
 
-double willCollide(sphere s, triple pix)
+double willCollide(sphere sph, triple pix)
 {
-  triple t = {0};
-  diff(&t, pix, eye);
-  double mag = magnitude(t);
-  t.x /= mag;
-  t.y /= mag;
-  t.z /= mag;
+  triple unitVector = {0};
+  diff(&unitVector, pix, eye);
+  double mag = magnitude(unitVector);
+  unitVector.x /= mag;
+  unitVector.y /= mag;
+  unitVector.z /= mag;
 
-  double b = 2*(t.x*(eye.x-s.x)+t.y*(eye.y-s.y)+t.z*(eye.z-s.z));
-  double c = pow(eye.x-s.x,2)+pow(eye.y-s.y,2)+pow(eye.z-s.z,2)-pow(s.r,2);
+  double b = 2*(unitVector.x*(pix.x-sph.x)+unitVector.y*(pix.y-sph.y)+unitVector.z*(pix.z-sph.z));
+  double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
 
   double discriminant = pow(b,2) - 4*c;
 
@@ -69,17 +69,19 @@ double willCollide(sphere s, triple pix)
     triple ray = {0};
     if(r1 < r2 && r1 > 0)
     {
-      ray.x = pix.x + r1*t.x;
-      ray.y = pix.y + r1*t.y;
-      ray.z = pix.z + r1*t.z;
+      ray.x = pix.x + r1*unitVector.x;
+      ray.y = pix.y + r1*unitVector.y;
+      ray.z = pix.z + r1*unitVector.z;
+      return magnitude(ray);
     }
-    else
+    else if(r2 > 0)
     {
-      ray.x = pix.x + r2*t.x;
-      ray.y = pix.y + r2*t.y;
-      ray.z = pix.z + r2*t.z;
+      ray.x = pix.x + r2*unitVector.x;
+      ray.y = pix.y + r2*unitVector.y;
+      ray.z = pix.z + r2*unitVector.z;
+      return magnitude(ray);
     }
-    return magnitude(ray);
+    return -1;
   }
   else
     return -1;
@@ -159,9 +161,9 @@ int main(int argc, int* argv)
     int xpx = 0;
     int ypx = 0;
     double x, y;
-    for(x = 0; x < 1.5; x+=1.0/480)
+    for(y = 0; y < 1.0; y+=1.0/YRES)
     {
-      for(y = 0; y < 1; y+=1.0/480)
+      for(x = 0; x < 1.5; x+=1.5/XRES)
       {
         triple temp = {x, y, 0};
         //printf("%d\n", ypx);
@@ -171,11 +173,11 @@ int main(int argc, int* argv)
           render[xpx][ypx] = result;
           colorArr[xpx][ypx] = arr[i].c;
         }
-        ypx++;
+        xpx++;
       }
-      ypx = 0;
+      xpx = 0;
       //printf("%d\n", xpx);
-      xpx++;
+      ypx++;
     }
 
   }
@@ -184,14 +186,14 @@ int main(int argc, int* argv)
   FILE* fout = fopen( "img.ppm" , "w" ) ;
   //
   fprintf( fout , "P3\n" ) ;
-  fprintf( fout , "%d %d\n" , 720 , 480 ) ;
+  fprintf( fout , "%d %d\n" , XRES , YRES ) ;
   fprintf( fout , "255\n" ) ;
   //
-  for( x = 0 ; x < 720 ; x++ )
+  for( y = YRES-1 ; y >=0 ; y-- )
   {
-     for( y = 0 ; y < 480 ; y++)
+     for( x = 0 ; x < XRES ; x++ )
      {
-        fprintf( fout , " %d %d %d\n" ,
+        fprintf( fout , "%d %d %d\n" ,
          colorArr[x][y].r , colorArr[x][y].g , colorArr[x][y].b ) ;
      }
   }
