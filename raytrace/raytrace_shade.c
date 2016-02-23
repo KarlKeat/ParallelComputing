@@ -31,7 +31,7 @@ typedef struct sphere
 triple eye = {.50, .50, -1.00};
 triple light = {0, 1.25, -.50};
 triple nulltrip = {-1, -1, -1};
-struct sphere arr[4] = {0};
+struct sphere sphereArray[4] = {0};
 
 double dotProduct(triple a, triple b)
 {
@@ -50,16 +50,21 @@ double magnitude(triple t)
   return sqrt(pow(t.x,2) + pow(t.y,2) + pow(t.z,2));
 }
 
+triple unitVector(triple* t)
+{
+  double mag = 1/magnitude(*t);
+  t -> x *= mag;
+  t -> y *= mag;
+  t -> z *= mag;
+}
+
 triple willCollide(sphere sph, triple pix)
 {
-  triple unitVector = {0};
-  diff(&unitVector, pix, eye);
-  double mag = magnitude(unitVector);
-  unitVector.x /= mag;
-  unitVector.y /= mag;
-  unitVector.z /= mag;
+  triple vector = {0};
+  diff(&vector, pix, eye);
+  unitVector(&vector);
 
-  double b = 2*(unitVector.x*(pix.x-sph.x)+unitVector.y*(pix.y-sph.y)+unitVector.z*(pix.z-sph.z));
+  double b = 2*(vector.x*(pix.x-sph.x)+vector.y*(pix.y-sph.y)+vector.z*(pix.z-sph.z));
   double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
 
   double discriminant = pow(b,2) - 4*c;
@@ -71,16 +76,16 @@ triple willCollide(sphere sph, triple pix)
     triple ray = {0};
     if(r1 < r2 && r1 > 0)
     {
-      ray.x = pix.x + r1*unitVector.x;
-      ray.y = pix.y + r1*unitVector.y;
-      ray.z = pix.z + r1*unitVector.z;
+      ray.x = pix.x + r1*vector.x;
+      ray.y = pix.y + r1*vector.y;
+      ray.z = pix.z + r1*vector.z;
       return ray;
     }
     else if(r2 > 0)
     {
-      ray.x = pix.x + r2*unitVector.x;
-      ray.y = pix.y + r2*unitVector.y;
-      ray.z = pix.z + r2*unitVector.z;
+      ray.x = pix.x + r2*vector.x;
+      ray.y = pix.y + r2*vector.y;
+      ray.z = pix.z + r2*vector.z;
       return ray;
     }
     return nulltrip;
@@ -89,17 +94,69 @@ triple willCollide(sphere sph, triple pix)
     return nulltrip;
 }
 
-double calcShading(triple pt)
+triple shadeCollide(sphere sph, triple pix)
 {
-  //int i;
-  //for(i = 0; i < 4; i++)
-  //{
-    //triple t = {0};
-    //diff(&t, light, pt);
-    //if(willCollide(arr[i], t).x != -1)
-      //return 0;
-  //}
-  double result = dotProduct(pt, light)/(magnitude(pt)*magnitude(light));
+  triple vector = {0};
+  diff(&vector, light, pix);
+  unitVector(&vector);
+
+  double b = 2*(vector.x*(pix.x-sph.x)+vector.y*(pix.y-sph.y)+vector.z*(pix.z-sph.z));
+  double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
+
+  double discriminant = pow(b,2) - 4*c;
+
+  if(discriminant >= 0)
+  {
+    double r1 = (-b - sqrt(pow(b,2)-4*c))/2.0;
+    double r2 = (-b + sqrt(pow(b,2)-4*c))/2.0;
+    triple ray = {0};
+    if(r1 < r2 && r1 > 0)
+    {
+      ray.x = pix.x + r1*vector.x;
+      ray.y = pix.y + r1*vector.y;
+      ray.z = pix.z + r1*vector.z;
+      return ray;
+    }
+    else if(r2 > 0)
+    {
+      ray.x = pix.x + r2*vector.x;
+      ray.y = pix.y + r2*vector.y;
+      ray.z = pix.z + r2*vector.z;
+      return ray;
+    }
+    return nulltrip;
+  }
+  else
+    return nulltrip;
+}
+
+double calcShading(triple pt, int current)
+{
+  //printf("%f, %f, %f\n", pt.x, pt.y, pt.z);
+  int i;
+  for(i = 0; i < 4; i++)
+  {
+    triple collision = shadeCollide(sphereArray[i], pt);
+    if(i != current && !(collision.x == -1 && collision.y == -1 && collision.z == -1))
+      return 0;
+  }
+  triple centerVector = {0};
+  triple center = {0};
+  center.x = sphereArray[i].x;
+  center.y = sphereArray[i].y;
+  center.z = sphereArray[i].z;
+  diff(&centerVector, pt, center);
+
+  pt.x += .000001 * centerVector.x;
+  pt.y += .000001 * centerVector.y;
+  pt.z += .000001 * centerVector.z;
+
+  triple pointVector = {0};
+  diff(&pointVector, light, pt);
+
+  unitVector(&pointVector);
+  unitVector(&centerVector);
+  double result = dotProduct(pointVector, centerVector);
   if(result > 0)
   {
     return result;
@@ -154,10 +211,10 @@ void init()
    d.c.g =    0    ;
    d.c.b =    0    ;
 
-   arr[0] = a;
-   arr[1] = b;
-   arr[2] = c;
-   arr[3] = d;
+   sphereArray[0] = a;
+   sphereArray[1] = b;
+   sphereArray[2] = c;
+   sphereArray[3] = d;
 }
 
 void printSphere(sphere s)
@@ -169,13 +226,13 @@ int main(int argc, int* argv)
 {
   init();
   double render[XRES][YRES] = {0};
-  color colorArr[XRES][YRES] = {0};
+  color colorsphereArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
 
   int i;
   for(i = 0; i < 4; i++)
   {
-    //printSphere(arr[i]);
+    //printSphere(sphereArray[i]);
     int xpx = 0;
     int ypx = 0;
     double x, y;
@@ -185,19 +242,19 @@ int main(int argc, int* argv)
       {
         triple temp = {x, y, 0};
         //printf("%d\n", ypx);
-        triple result = willCollide(arr[i], temp);
+        triple result = willCollide(sphereArray[i], temp);
         if(!(result.x==-1&&result.y==-1&&result.z==-1) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
         {
           render[xpx][ypx] = magnitude(result);
           temp.x = eye.x + result.x;
           temp.y = eye.y + result.y;
           temp.z = eye.z + result.z;
-          double luminosity = calcShading(temp);
-          color tempColor = arr[i].c;
-          tempColor.r *= luminosity;
-          tempColor.g *= luminosity;
-          tempColor.b *= luminosity;
-          colorArr[xpx][ypx] = tempColor;
+          double luminosity = calcShading(temp, i);
+          color tempColor = {0};
+          tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
+          tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
+          tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+          colorsphereArray[xpx][ypx] = tempColor;
         }
         xpx++;
       }
@@ -220,7 +277,7 @@ int main(int argc, int* argv)
      for( x = 0 ; x < XRES ; x++ )
      {
         fprintf( fout , "%d %d %d\n" ,
-         colorArr[x][y].r , colorArr[x][y].g , colorArr[x][y].b ) ;
+         colorsphereArray[x][y].r , colorsphereArray[x][y].g , colorsphereArray[x][y].b ) ;
      }
   }
   close( fout ) ;
