@@ -202,11 +202,13 @@ double calcShading(triple pt, sphere current)
 
 
   int i;
-  for(i = 0; i < NUMSPHERES; i++)
+  ListNode* tempNode = root;
+  while(tempNode != NULL)
   {
     triple collision = shadeCollide(sphereArray[i], pt);
     if(!isNull(collision))
       return 0;
+    tempNode = tempNode.next;
   }
   unitVector(&pointVector);
   double result = dotProduct(pointVector, centerVector);
