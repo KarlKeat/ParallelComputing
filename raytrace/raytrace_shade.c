@@ -4,6 +4,7 @@
 
 #define XRES 720
 #define YRES 480
+#define NUMSPHERES 4
 
 typedef struct triple
 {
@@ -31,7 +32,19 @@ typedef struct sphere
 triple eye = {.50, .50, -1.00};
 triple light = {0, 1.25, -.50};
 triple nulltrip = {-1, -1, -1};
-struct sphere sphereArray[4] = {0};
+struct sphere sphereArray[NUMSPHERES] = {0};
+
+int isNull(triple t)
+{
+  if(t.x != -1 || t.y != -1 || t.z != -1)
+  {
+    return 0;
+  }
+  else
+  {
+    return 1;
+  }
+}
 
 double dotProduct(triple a, triple b)
 {
@@ -64,8 +77,8 @@ triple willCollide(sphere sph, triple pix)
   diff(&vector, pix, eye);
   unitVector(&vector);
 
-  double b = 2*(vector.x*(pix.x-sph.x)+vector.y*(pix.y-sph.y)+vector.z*(pix.z-sph.z));
-  double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
+  double b = 2*(vector.x*(eye.x-sph.x)+vector.y*(eye.y-sph.y)+vector.z*(eye.z-sph.z));
+  double c = pow(eye.x-sph.x,2)+pow(eye.y-sph.y,2)+pow(eye.z-sph.z,2)-pow(sph.r,2);
 
   double discriminant = pow(b,2) - 4*c;
 
@@ -76,16 +89,16 @@ triple willCollide(sphere sph, triple pix)
     triple ray = {0};
     if(r1 < r2 && r1 > 0)
     {
-      ray.x = pix.x + r1*vector.x;
-      ray.y = pix.y + r1*vector.y;
-      ray.z = pix.z + r1*vector.z;
+      ray.x = eye.x + r1*vector.x;
+      ray.y = eye.y + r1*vector.y;
+      ray.z = eye.z + r1*vector.z;
       return ray;
     }
     else if(r2 > 0)
     {
-      ray.x = pix.x + r2*vector.x;
-      ray.y = pix.y + r2*vector.y;
-      ray.z = pix.z + r2*vector.z;
+      ray.x = eye.x + r2*vector.x;
+      ray.y = eye.y + r2*vector.y;
+      ray.z = eye.z + r2*vector.z;
       return ray;
     }
     return nulltrip;
@@ -133,20 +146,13 @@ triple shadeCollide(sphere sph, triple pix)
 double calcShading(triple pt, int current)
 {
   //printf("%f, %f, %f\n", pt.x, pt.y, pt.z);
-  int i;
-  for(i = 0; i < 4; i++)
-  {
-    triple collision = shadeCollide(sphereArray[i], pt);
-    if(i != current && !(collision.x == -1 && collision.y == -1 && collision.z == -1))
-      return 0;
-  }
-  triple centerVector = {0};
   triple center = {0};
-  center.x = sphereArray[i].x;
-  center.y = sphereArray[i].y;
-  center.z = sphereArray[i].z;
+  center.x = sphereArray[current].x;
+  center.y = sphereArray[current].y;
+  center.z = sphereArray[current].z;
+  triple centerVector = {0};
   diff(&centerVector, pt, center);
-
+  unitVector(&centerVector);
   pt.x += .000001 * centerVector.x;
   pt.y += .000001 * centerVector.y;
   pt.z += .000001 * centerVector.z;
@@ -154,8 +160,15 @@ double calcShading(triple pt, int current)
   triple pointVector = {0};
   diff(&pointVector, light, pt);
 
+
+  int i;
+  for(i = 0; i < NUMSPHERES; i++)
+  {
+    triple collision = shadeCollide(sphereArray[i], pt);
+    if(!isNull(collision))
+      return 0;
+  }
   unitVector(&pointVector);
-  unitVector(&centerVector);
   double result = dotProduct(pointVector, centerVector);
   if(result > 0)
   {
@@ -226,13 +239,12 @@ int main(int argc, int* argv)
 {
   init();
   double render[XRES][YRES] = {0};
-  color colorsphereArray[XRES][YRES] = {0};
+  color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
 
   int i;
-  for(i = 0; i < 4; i++)
+  for(i = 0; i < NUMSPHERES; i++)
   {
-    //printSphere(sphereArray[i]);
     int xpx = 0;
     int ypx = 0;
     double x, y;
@@ -241,25 +253,20 @@ int main(int argc, int* argv)
       for(x = 0; x < 1.5; x+=1.5/XRES)
       {
         triple temp = {x, y, 0};
-        //printf("%d\n", ypx);
         triple result = willCollide(sphereArray[i], temp);
-        if(!(result.x==-1&&result.y==-1&&result.z==-1) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
+        if(!isNull(result) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
         {
           render[xpx][ypx] = magnitude(result);
-          temp.x = eye.x + result.x;
-          temp.y = eye.y + result.y;
-          temp.z = eye.z + result.z;
-          double luminosity = calcShading(temp, i);
+          double luminosity = calcShading(result, i);
           color tempColor = {0};
           tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
           tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
           tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
-          colorsphereArray[xpx][ypx] = tempColor;
+          colorArray[xpx][ypx] = tempColor;
         }
         xpx++;
       }
       xpx = 0;
-      //printf("%d\n", xpx);
       ypx++;
     }
 
@@ -277,7 +284,7 @@ int main(int argc, int* argv)
      for( x = 0 ; x < XRES ; x++ )
      {
         fprintf( fout , "%d %d %d\n" ,
-         colorsphereArray[x][y].r , colorsphereArray[x][y].g , colorsphereArray[x][y].b ) ;
+         colorArray[x][y].r , colorArray[x][y].g , colorArray[x][y].b ) ;
      }
   }
   close( fout ) ;
