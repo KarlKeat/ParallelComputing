@@ -39,6 +39,7 @@ typedef struct ListNode
 triple eye = {.50, .50, -1.00};
 triple light = {0, 1.25, -.50};
 triple nulltrip = {-1, -1, -1};
+color sphereColor = {128, 0, 128};
 ListNode* root = NULL;
 ListNode* last = NULL;
 
@@ -46,32 +47,38 @@ void readFile(char* filename)
 {
   FILE* file = fopen(filename, "r");
   int numbytes = 1;
-  char* temp;
-  char* garbage;
+  char* temp = malloc(36*sizeof(char));
   double sphereValues[4];
   int i = 0;
-
+  
+  numbytes = fread(temp, sizeof(char), 36, file);
   while(numbytes != 0)
   {
-    numbytes = fread(&temp, sizeof(char), 36, file);
-    sphereValues[0] = strtod(&temp, &temp);
-    sphereValues[1] = strtod(&temp, &temp);
-    sphereValues[2] = strtod(&temp, &temp);
-    sphereValues[3] = strtod(&temp, &temp);
-    sphere tempSphere = sphere{sphereValues[0], sphereValues[1],
-                         sphereValues[2], sphereValues[3]};
+    //printf("%s\n", temp);
+    sphereValues[0] = strtod(temp, &temp);
+    //printf("%f\n", sphereValues[0]);
+    sphereValues[1] = strtod(temp, &temp);
+    sphereValues[2] = strtod(temp, &temp);
+    sphereValues[3] = strtod(temp, &temp);
+
+    sphere tempSphere = {sphereValues[0], sphereValues[1],
+                         sphereValues[2], sphereValues[3], sphereColor};
     ListNode node = {tempSphere, NULL};
     if(last == NULL)
     {
-      root = node;
+      root = &node;
       last = root;
+      printf("%s\n", "newhead");
     }
     else
     {
-      last.next = node;
-      last = node;
+      last -> next = &node;
+      last = &node;
+      printf("%s\n", "newnode");
     }
+    numbytes = fread(temp, sizeof(char), 36, file);
   }
+  printf("%s\n", "done");
 }
 
 int isNull(triple t)
@@ -205,10 +212,10 @@ double calcShading(triple pt, sphere current)
   ListNode* tempNode = root;
   while(tempNode != NULL)
   {
-    triple collision = shadeCollide(sphereArray[i], pt);
+    triple collision = shadeCollide(current, pt);
     if(!isNull(collision))
       return 0;
-    tempNode = tempNode.next;
+    tempNode = tempNode -> next;
   }
   unitVector(&pointVector);
   double result = dotProduct(pointVector, centerVector);
@@ -280,6 +287,7 @@ void printSphere(sphere s)
 int main(int argc, int* argv)
 {
   //init();
+  readFile(FILENAME);
   double render[XRES][YRES] = {0};
   color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
@@ -291,7 +299,7 @@ int main(int argc, int* argv)
     int xpx = 0;
     int ypx = 0;
     double x, y;
-    sphere current = tempNode.sph;
+    sphere current = tempNode -> sph;
     for(y = 0; y < 1.0; y+=1.0/YRES)
     {
       for(x = 0; x < 1.5; x+=1.5/XRES)
@@ -313,7 +321,7 @@ int main(int argc, int* argv)
       xpx = 0;
       ypx++;
     }
-    tempNode = tempNode.next;
+    tempNode = tempNode -> next;
   }
 
   int x,y;
