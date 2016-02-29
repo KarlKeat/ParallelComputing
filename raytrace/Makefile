@@ -1,5 +1,5 @@
-a.out: raytrace_shade.c
-	gcc -lm raytrace_shade.c
+a.out: raytrace_read.c
+	gcc -lm raytrace_read.c
 
 clean:
 	rm a.out

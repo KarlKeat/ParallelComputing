@@ -4,7 +4,7 @@
 
 #define XRES 720
 #define YRES 480
-#define NUMSPHERES 6000
+#define NUMSPHERES 4
 #define FILENAME "wire.txt"
 
 typedef struct triple
@@ -30,11 +30,17 @@ typedef struct sphere
   struct color c;
 }sphere;
 
+typedef struct ListNode
+{
+	struct sphere* sph;
+	struct ListNode* next;
+}ListNode;
+
 triple eye = {.50, .50, -1.00};
 triple light = {0, 1.25, -.50};
 triple nulltrip = {-1, -1, -1};
 struct color sphereColor = {128, 0, 128};
-struct sphere sphereArray[NUMSPHERES] = {0};
+struct ListNode* root = NULL;
 
 void readFile(char* filename)
 {
@@ -43,11 +49,12 @@ void readFile(char* filename)
   char* temp = malloc(36*sizeof(char));
   double sphereValues[4];
   int i = 0;
+  struct ListNode* last = NULL;
 
   numbytes = fread(temp, sizeof(char), 36, file);
 
   //while(numbytes != 0)
-  for(i = 0; i < NUMSPHERES; i++)
+  for(i = 0; i < 10; i++)
   {
     temp[36] = '\0';
     //printf("%s\n", temp);
@@ -55,15 +62,38 @@ void readFile(char* filename)
     sphereValues[1] = strtod(temp, &temp);
     sphereValues[2] = strtod(temp, &temp);
     sphereValues[3] = strtod(temp, &temp);
-    struct sphere tempSphere = {sphereValues[0], sphereValues[1],
-                                sphereValues[2], sphereValues[3], sphereColor};
-    sphereArray[i] = tempSphere;
-    printf("%d\n", i);
+    printf("%f\n", sphereValues[2]);
+    sphere* tempSphere = (sphere*)malloc(sizeof(struct sphere));
+    tempSphere -> x = sphereValues[0];
+    tempSphere -> y = sphereValues[1];
+    tempSphere -> z = sphereValues[2];
+    tempSphere -> r = sphereValues[3];
+    tempSphere -> c = sphereColor;
+
+    if(last == NULL)
+    {
+      root = (ListNode*)malloc(sizeof(struct ListNode));
+      root -> sph = tempSphere;
+      root -> next = NULL;;
+      last = root;
+      printf("%s\n", "newhead");
+    }
+    else
+    {
+      last -> next = (ListNode*)malloc(sizeof(struct ListNode));
+      last = last -> next;
+      last -> sph = tempSphere;
+      last -> next = NULL;
+      //printf("%s\n", "newnode");
+    }
+    printf("%f\n", root -> sph -> x);
     numbytes = fread(temp, sizeof(char), 36, file);
   }
   close(file);
-  printf("%s\n", "done");
+  //printf("%s\n", "done");
 }
+
+
 
 int isNull(triple t)
 {
@@ -174,13 +204,13 @@ triple shadeCollide(sphere sph, triple pix)
     return nulltrip;
 }
 
-double calcShading(triple pt, int current)
+double calcShading(triple pt, sphere current)
 {
   //printf("%f, %f, %f\n", pt.x, pt.y, pt.z);
   triple center = {0};
-  center.x = sphereArray[current].x;
-  center.y = sphereArray[current].y;
-  center.z = sphereArray[current].z;
+  center.x = current.x;
+  center.y = current.y;
+  center.z = current.z;
   triple centerVector = {0};
   diff(&centerVector, pt, center);
   unitVector(&centerVector);
@@ -193,11 +223,13 @@ double calcShading(triple pt, int current)
 
 
   int i;
-  for(i = 0; i < NUMSPHERES; i++)
+  ListNode* tempNode = root;
+  while(tempNode != NULL)
   {
-    triple collision = shadeCollide(sphereArray[i], pt);
+    triple collision = shadeCollide(current, pt);
     if(!isNull(collision))
       return 0;
+    tempNode = tempNode -> next;
   }
   unitVector(&pointVector);
   double result = dotProduct(pointVector, centerVector);
@@ -255,45 +287,62 @@ void init()
    d.c.g =    0    ;
    d.c.b =    0    ;
 
-   sphereArray[0] = a;
-   sphereArray[1] = b;
-   sphereArray[2] = c;
-   sphereArray[3] = d;
+   //sphereArray[0] = a;
+   //sphereArray[1] = b;
+   //sphereArray[2] = c;
+   //sphereArray[3] = d;
 }
 
-void printSphere(sphere s)
+void printSphere(sphere* s)
 {
-  printf("x:\t%f\ny:\t%f\nz:\t%f\nrad:\t%f\nr:\t%d\ng:\t%d\nb:\t%d\n\n", s.x, s.y, s.z, s.r, s.c.r, s.c.g, s.c.b);
+  printf("x:\t%f\ny:\t%f\nz:\t%f\nrad:\t%f\nr:\t%d\ng:\t%d\nb:\t%d\n\n", s->x, s->y, s->z, s->r, s->c.r, s->c.g, s->c.b);
+}
+
+void printList()
+{
+  ListNode* temp = root;
+  while(temp != NULL)
+  {
+    puts("1");
+    printSphere(temp -> sph);
+    temp = temp -> next;
+  }
 }
 
 int main(int argc, int* argv)
 {
   //init();
   readFile(FILENAME);
+  printList();
+  printf("%f\n", root -> sph->x);
+  printf("%f\n", root -> next -> sph->x);
   double render[XRES][YRES] = {0};
   color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
 
   int i;
-  for(i = 0; i < NUMSPHERES; i++)
+  struct ListNode* tempNode = root;
+  while(tempNode != NULL)
   {
     int xpx = 0;
     int ypx = 0;
     double x, y;
+    sphere* current = tempNode -> sph;
+    printf("%f\n", current->x);
     for(y = 0; y < 1.0; y+=1.0/YRES)
     {
       for(x = 0; x < 1.5; x+=1.5/XRES)
       {
         triple temp = {x, y, 0};
-        triple result = willCollide(sphereArray[i], temp);
+        triple result = willCollide(*current, temp);
         if(!isNull(result) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
         {
           render[xpx][ypx] = magnitude(result);
-          double luminosity = calcShading(result, i);
+          double luminosity = calcShading(result, *current);
           color tempColor = {0};
-          tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
-          tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
-          tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+          tempColor.r = current->c.r*(.4 + (.6*luminosity));
+          tempColor.g = current->c.g*(.4 + (.6*luminosity));
+          tempColor.b = current->c.b*(.4 + (.6*luminosity));
           colorArray[xpx][ypx] = tempColor;
         }
         xpx++;
@@ -301,7 +350,7 @@ int main(int argc, int* argv)
       xpx = 0;
       ypx++;
     }
-
+    tempNode = tempNode -> next;
   }
 
   int x,y;
