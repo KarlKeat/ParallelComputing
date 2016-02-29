@@ -4,8 +4,9 @@
 
 #define XRES 720
 #define YRES 480
-#define NUMSPHERES 6000
 #define FILENAME "wire.txt"
+
+#define NUMSPHERES 6000
 
 typedef struct triple
 {
@@ -30,37 +31,34 @@ typedef struct sphere
   struct color c;
 }sphere;
 
-triple eye = {.50, .50, -1.00};
-triple light = {0, 1.25, -.50};
-triple nulltrip = {-1, -1, -1};
-struct color sphereColor = {128, 0, 128};
-struct sphere sphereArray[NUMSPHERES] = {0};
+const triple eye = {.50, .50, -1.00};
+const triple light = {0, 1.25, -.50};
+const triple nulltrip = {-1, -1, -1};
+const struct color sphereColor = {128, 0, 128};
+sphere* sphereArray;
 
 void readFile(char* filename)
 {
   FILE* file = fopen(filename, "r");
   int numbytes = 1;
   char* temp = malloc(36*sizeof(char));
-  double sphereValues[4];
   int i = 0;
 
-  numbytes = fread(temp, sizeof(char), 36, file);
+  //numbytes = fread(temp, sizeof(char), 36, file);
 
   //while(numbytes != 0)
   for(i = 0; i < NUMSPHERES; i++)
   {
-    temp[36] = '\0';
-    //printf("%s\n", temp);
-    sphereValues[0] = strtod(temp, &temp);
-    sphereValues[1] = strtod(temp, &temp);
-    sphereValues[2] = strtod(temp, &temp);
-    sphereValues[3] = strtod(temp, &temp);
-    struct sphere tempSphere = {sphereValues[0], sphereValues[1],
-                                sphereValues[2], sphereValues[3], sphereColor};
-    sphereArray[i] = tempSphere;
+    temp[35] = '\0';
+    fscanf(file, "%lf", &sphereArray[i].x); //sphereArray[i].x =strtod(temp, &temp);
+    fscanf(file, "%lf", &sphereArray[i].y);//sphereArray[i].y = strtod(temp, &temp);
+    fscanf(file, "%lf", &sphereArray[i].z);//sphereArray[i].z = strtod(temp, &temp);
+    fscanf(file, "%lf", &sphereArray[i].r);//sphereArray[i].r = strtod(temp, &temp);
+    sphereArray[i].c = sphereColor;
     printf("%d\n", i);
-    numbytes = fread(temp, sizeof(char), 36, file);
+    //numbytes = fread(temp, sizeof(char), 36, file);
   }
+
   close(file);
   printf("%s\n", "done");
 }
@@ -255,10 +253,10 @@ void init()
    d.c.g =    0    ;
    d.c.b =    0    ;
 
-   sphereArray[0] = a;
-   sphereArray[1] = b;
-   sphereArray[2] = c;
-   sphereArray[3] = d;
+   sphereArray[NUMSPHERES + 0] = a;
+   sphereArray[NUMSPHERES + 1] = b;
+   sphereArray[NUMSPHERES + 2] = c;
+   sphereArray[NUMSPHERES + 3] = d;
 }
 
 void printSphere(sphere s)
@@ -269,13 +267,15 @@ void printSphere(sphere s)
 int main(int argc, int* argv)
 {
   //init();
+  sphereArray = calloc(NUMSPHERES + 4, sizeof(sphere));
   readFile(FILENAME);
+  init();
   double render[XRES][YRES] = {0};
   color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
 
   int i;
-  for(i = 0; i < NUMSPHERES; i++)
+  for(i = 0; i < NUMSPHERES + 4; i++)
   {
     int xpx = 0;
     int ypx = 0;
