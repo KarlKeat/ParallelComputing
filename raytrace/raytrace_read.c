@@ -191,7 +191,7 @@ double calcShading(triple pt, int current)
 
 
   int i;
-  for(i = 0; i < NUMSPHERES; i++)
+  for(i = 0; i < NUMSPHERES + 4; i++)
   {
     triple collision = shadeCollide(sphereArray[i], pt);
     if(!isNull(collision))
