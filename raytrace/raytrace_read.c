@@ -4,9 +4,9 @@
 
 #define XRES 720
 #define YRES 480
-#define FILENAME "wire.txt"
 
-#define NUMSPHERES 6000
+int numspheres;
+char* filepath;
 
 typedef struct triple
 {
@@ -37,17 +37,32 @@ const triple nulltrip = {-1, -1, -1};
 const struct color sphereColor = {128, 0, 128};
 sphere* sphereArray;
 
+void countLines(char* filename)
+{
+  FILE* file = fopen(filename, "r");
+  numspheres = 0;
+  char temp = getc(file);
+  while(temp != EOF)
+  {
+    if(temp == '\n')
+    {
+      numspheres++;
+    }
+    temp = getc(file);
+  }
+  printf("%d\n", numspheres);
+  close(file);
+}
+
 void readFile(char* filename)
 {
   FILE* file = fopen(filename, "r");
-  int numbytes = 1;
-  char* temp = malloc(36*sizeof(char));
   int i = 0;
-
+  char* temp = malloc(36*sizeof(char));
   //numbytes = fread(temp, sizeof(char), 36, file);
 
   //while(numbytes != 0)
-  for(i = 0; i < NUMSPHERES; i++)
+  for(i = 0; i < numspheres; i++)
   {
     temp[35] = '\0';
     fscanf(file, "%lf", &sphereArray[i].x); //sphereArray[i].x =strtod(temp, &temp);
@@ -55,8 +70,7 @@ void readFile(char* filename)
     fscanf(file, "%lf", &sphereArray[i].z);//sphereArray[i].z = strtod(temp, &temp);
     fscanf(file, "%lf", &sphereArray[i].r);//sphereArray[i].r = strtod(temp, &temp);
     sphereArray[i].c = sphereColor;
-    printf("%d\n", i);
-    //numbytes = fread(temp, sizeof(char), 36, file);
+    //printf("%d\n", i);
   }
 
   close(file);
@@ -191,7 +205,7 @@ double calcShading(triple pt, int current)
 
 
   int i;
-  for(i = 0; i < NUMSPHERES + 4; i++)
+  for(i = 0; i < numspheres + 4; i++)
   {
     triple collision = shadeCollide(sphereArray[i], pt);
     if(!isNull(collision))
@@ -253,10 +267,10 @@ void init()
    d.c.g =    0    ;
    d.c.b =    0    ;
 
-   sphereArray[NUMSPHERES + 0] = a;
-   sphereArray[NUMSPHERES + 1] = b;
-   sphereArray[NUMSPHERES + 2] = c;
-   sphereArray[NUMSPHERES + 3] = d;
+   sphereArray[numspheres + 0] = a;
+   sphereArray[numspheres + 1] = b;
+   sphereArray[numspheres + 2] = c;
+   sphereArray[numspheres + 3] = d;
 }
 
 void printSphere(sphere s)
@@ -264,18 +278,23 @@ void printSphere(sphere s)
   printf("x:\t%f\ny:\t%f\nz:\t%f\nrad:\t%f\nr:\t%d\ng:\t%d\nb:\t%d\n\n", s.x, s.y, s.z, s.r, s.c.r, s.c.g, s.c.b);
 }
 
-int main(int argc, int* argv)
+int main(int argc, char* argv[])
 {
   //init();
-  sphereArray = calloc(NUMSPHERES + 4, sizeof(sphere));
-  readFile(FILENAME);
+  if(argc == 2)
+    filepath = argv[1];
+  else
+    filepath = "wire.txt";
+  countLines(filepath);
+  sphereArray = calloc(numspheres + 4, sizeof(sphere));
+  readFile(filepath);
   init();
   double render[XRES][YRES] = {0};
   color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
 
   int i;
-  for(i = 0; i < NUMSPHERES + 4; i++)
+  for(i = 0; i < numspheres + 4; i++)
   {
     int xpx = 0;
     int ypx = 0;
