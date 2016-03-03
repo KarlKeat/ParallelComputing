@@ -5,9 +5,6 @@
 #define XRES 720
 #define YRES 480
 
-int numspheres;
-char* filepath;
-
 typedef struct triple
 {
   double x ;
@@ -31,10 +28,19 @@ typedef struct sphere
   struct color c;
 }sphere;
 
+typedef struct box
+{
+  struct triple corner1;
+  struct triple corner2;
+}box;
+
 const triple eye = {.50, .50, -1.00};
 const triple light = {0, 1.25, -.50};
 const triple nulltrip = {-1, -1, -1};
 const struct color sphereColor = {128, 0, 128};
+int numspheres = 0;
+char* filepath;
+struct box boundingbox = {0};
 sphere* sphereArray;
 
 void countLines(char* filename)
@@ -50,7 +56,7 @@ void countLines(char* filename)
     }
     temp = getc(file);
   }
-  printf("%d\n", numspheres);
+  printf("%s has %d lines.\n", filename, numspheres);
   close(file);
 }
 
@@ -59,9 +65,6 @@ void readFile(char* filename)
   FILE* file = fopen(filename, "r");
   int i = 0;
   char* temp = malloc(36*sizeof(char));
-  //numbytes = fread(temp, sizeof(char), 36, file);
-
-  //while(numbytes != 0)
   for(i = 0; i < numspheres; i++)
   {
     temp[35] = '\0';
@@ -74,7 +77,46 @@ void readFile(char* filename)
   }
 
   close(file);
-  printf("%s\n", "done");
+  printf("Finished reading %s.\n", filename);
+}
+
+void makeBoundingBox(void)
+{
+  double xMin, yMin, zMin;
+  xMin = yMin = zMin = 1000000;
+  double xMax, yMax, zMax;
+  xMax = yMax = zMax = -1000000;
+  int i;
+  for(i = 0; i < numspheres + 4; i++)
+  {
+    double sphX = sphereArray[i].x + sphereArray[i].r;
+    if(sphX > xMax)
+      xMax = sphX;
+    sphX = sphereArray[i].x - sphereArray[i].r;
+    if(sphX < xMin)
+      xMin = sphX;
+
+    double sphY = sphereArray[i].y + sphereArray[i].r;
+    if(sphY > yMax)
+      yMax = sphY;
+    sphY = sphereArray[i].y - sphereArray[i].r;
+    if(sphY < yMin)
+      yMin = sphY;
+
+    double sphZ = sphereArray[i].z + sphereArray[i].r;
+    if(sphZ > zMax)
+      zMax = sphZ;
+    sphZ = sphereArray[i].z - sphereArray[i].r;
+    if(sphX < xMin)
+      zMin = sphZ;
+  }
+  boundingbox.corner1.x = xMax;
+  boundingbox.corner1.y = yMax;
+  boundingbox.corner1.z = zMax;
+  boundingbox.corner2.x = xMin;
+  boundingbox.corner2.y = yMin;
+  boundingbox.corner2.z = zMin;
+  printf("<%f,%f,%f>, <%f,%f,%f>\n", xMax, yMax, zMax, xMin, yMin, zMin);
 }
 
 int isNull(triple t)
@@ -186,6 +228,17 @@ triple shadeCollide(sphere sph, triple pix)
     return nulltrip;
 }
 
+int boxCollide(sphere sph, triple pix)
+{
+  triple vector = {0};
+  diff(&vector, light, pix);
+  unitVector(&vector);
+
+
+
+  return 0;
+}
+
 double calcShading(triple pt, int current)
 {
   //printf("%f, %f, %f\n", pt.x, pt.y, pt.z);
@@ -235,9 +288,9 @@ void init()
    a.y = -20000.00 ; // the floor
    a.z =      0.50 ;
    a.r =  20000.25 ;
-   a.c.r =    205  ; // color is Peru
-   a.c.g =    133  ;
-   a.c.b =     63  ;
+   a.c.r =      0  ; // color is Peru
+   a.c.g =    191  ;
+   a.c.b =    255  ;
 
    //
    sphere b = {0};
@@ -280,7 +333,6 @@ void printSphere(sphere s)
 
 int main(int argc, char* argv[])
 {
-  //init();
   if(argc == 2)
     filepath = argv[1];
   else
@@ -289,6 +341,7 @@ int main(int argc, char* argv[])
   sphereArray = calloc(numspheres + 4, sizeof(sphere));
   readFile(filepath);
   init();
+  makeBoundingBox();
   double render[XRES][YRES] = {0};
   color colorArray[XRES][YRES] = {0};
   color blank = {0, 0, 0};
@@ -304,23 +357,43 @@ int main(int argc, char* argv[])
       for(x = 0; x < 1.5; x+=1.5/XRES)
       {
         triple temp = {x, y, 0};
-        triple result = willCollide(sphereArray[i], temp);
-        if(!isNull(result) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
+        if(!boxCollide(sphereArray[i], temp))
         {
-          render[xpx][ypx] = magnitude(result);
-          double luminosity = calcShading(result, i);
-          color tempColor = {0};
-          tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
-          tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
-          tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
-          colorArray[xpx][ypx] = tempColor;
+          triple result = willCollide(sphereArray[i], temp);
+          if(!isNull(result) && (render[xpx][ypx] == 0.0 || magnitude(result) < render[xpx][ypx]))
+          {
+            render[xpx][ypx] = magnitude(result);
+            double luminosity = calcShading(result, i);
+            color tempColor = {0};
+            if(i == numspheres)
+            {
+              if(((int)floor(result.x*5)%2==0&&(int)floor(result.z*5)%2!=0)||((int)floor(result.x*5)%2!=0&&(int)floor(result.z*5)%2==0))
+              {
+                tempColor.r = (255-sphereArray[i].c.r)*(.4 + (.6*luminosity));
+                tempColor.g = (255-sphereArray[i].c.g)*(.4 + (.6*luminosity));
+                tempColor.b = (255-sphereArray[i].c.b)*(.4 + (.6*luminosity));
+              }
+              else
+              {
+                tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
+                tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
+                tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+              }
+            }
+            else
+            {
+              tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
+              tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
+              tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+            }
+            colorArray[xpx][ypx] = tempColor;
+          }
         }
         xpx++;
       }
       xpx = 0;
       ypx++;
     }
-
   }
 
   int x,y;
