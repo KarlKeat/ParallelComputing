@@ -234,10 +234,13 @@ int boxCollide(sphere sph, triple pix)
   diff(&vector, light, pix);
   unitVector(&vector);
 
+  double tFar = -1000000;
+  double tNear = 1000000;
 
 
   return 0;
 }
+
 
 double calcShading(triple pt, int current)
 {
@@ -256,13 +259,14 @@ double calcShading(triple pt, int current)
   triple pointVector = {0};
   diff(&pointVector, light, pt);
 
-
   int i;
   for(i = 0; i < numspheres + 4; i++)
   {
     triple collision = shadeCollide(sphereArray[i], pt);
     if(!isNull(collision))
+    {
       return 0;
+    }
   }
   unitVector(&pointVector);
   double result = dotProduct(pointVector, centerVector);
@@ -271,6 +275,96 @@ double calcShading(triple pt, int current)
     return result;
   }
   return 0;
+}
+
+triple relflectCollide(sphere sph, triple vector, triple pix)
+{
+  double b = 2*(vector.x*(pix.x-sph.x)+vector.y*(pix.y-sph.y)+vector.z*(pix.z-sph.z));
+  double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
+
+  double discriminant = pow(b,2) - 4*c;
+
+  if(discriminant >= 0)
+  {
+    double r1 = (-b - sqrt(pow(b,2)-4*c))/2.0;
+    double r2 = (-b + sqrt(pow(b,2)-4*c))/2.0;
+    triple ray = {0};
+    if(r1 < r2 && r1 > 0)
+    {
+      ray.x = r1*vector.x;
+      ray.y = r1*vector.y;
+      ray.z = r1*vector.z;
+      return ray;
+    }
+    else if(r2 > 0)
+    {
+      ray.x = r2*vector.x;
+      ray.y = r2*vector.y;
+      ray.z = r2*vector.z;
+      return ray;
+    }
+    return nulltrip;
+  }
+  else
+    return nulltrip;
+}
+
+color calcReflectance(triple pt, int current) // Ray - 2*(Normal dot Ray)*Normal
+{
+  triple center = {0};
+  center.x = sphereArray[current].x;
+  center.y = sphereArray[current].y;
+  center.z = sphereArray[current].z;
+  triple centerVector = {0};
+  diff(&centerVector, center, pt);
+  centerVector.x *= -1;
+  centerVector.y *= -1;
+  centerVector.z *= -1;
+  unitVector(&centerVector);
+
+  pt.x += .000001 * centerVector.x;
+  pt.y += .000001 * centerVector.y;
+  pt.z += .000001 * centerVector.z;
+
+  triple ray = pt;
+  unitVector(&ray);
+
+  triple reflection = {0};
+  double scalar = 2*dotProduct(ray, centerVector);
+  reflection.x = ray.x - scalar*centerVector.x;
+  reflection.y = ray.y - scalar*centerVector.y;
+  reflection.z = ray.z - scalar*centerVector.z;
+
+  double minMagnitude = 1000000;
+  int minSphere = -1;
+  int i;
+  for(i = 0; i < numspheres + 4; i++)
+  {
+    triple collision = relflectCollide(sphereArray[i], reflection, pt);
+    if(!isNull(collision) && magnitude(collision) < minMagnitude)
+    {
+      minMagnitude = magnitude(collision);
+      minSphere = i;
+    }
+  }
+  if(minSphere != -1)
+  {
+    triple collision = relflectCollide(sphereArray[minSphere], reflection, pt);
+    collision.x += pt.x;
+    collision.y += pt.y;
+    collision.z += pt.z;
+    double luminosity = calcShading(collision, minSphere);
+    color tempColor = sphereArray[minSphere].c;
+    tempColor.r *= (.4 + .6*luminosity);
+    tempColor.g *= (.4 + .6*luminosity);
+    tempColor.b *= (.4 + .6*luminosity);
+    return tempColor;
+  }
+  else
+  {
+    return sphereArray[current].c;
+  }
+
 }
 
 double min(double a, double b)
@@ -337,9 +431,10 @@ int main(int argc, char* argv[])
     filepath = argv[1];
   else
     filepath = "wire.txt";
-  countLines(filepath);
+  numspheres = 4;
+  //countLines(filepath);
   sphereArray = calloc(numspheres + 4, sizeof(sphere));
-  readFile(filepath);
+  //readFile(filepath);
   init();
   makeBoundingBox();
   double render[XRES][YRES] = {0};
@@ -364,27 +459,28 @@ int main(int argc, char* argv[])
           {
             render[xpx][ypx] = magnitude(result);
             double luminosity = calcShading(result, i);
+            color reflectance = calcReflectance(result, i);
             color tempColor = {0};
             if(i == numspheres)
             {
               if(((int)floor(result.x*5)%2==0&&(int)floor(result.z*5)%2!=0)||((int)floor(result.x*5)%2!=0&&(int)floor(result.z*5)%2==0))
               {
-                tempColor.r = (255-sphereArray[i].c.r)*(.4 + (.6*luminosity));
-                tempColor.g = (255-sphereArray[i].c.g)*(.4 + (.6*luminosity));
-                tempColor.b = (255-sphereArray[i].c.b)*(.4 + (.6*luminosity));
+                tempColor.r = (.6*sphereArray[i].c.r+.4*reflectance.r)*(.4 + (.6*luminosity));
+                tempColor.g = (.6*sphereArray[i].c.g+.4*reflectance.g)*(.4 + (.6*luminosity));
+                tempColor.b = (.6*sphereArray[i].c.b+.4*reflectance.b)*(.4 + (.6*luminosity));
               }
               else
               {
-                tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
-                tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
-                tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+                tempColor.r = (.6*sphereArray[i].c.r+.4*reflectance.r)*(.4 + (.6*luminosity));
+                tempColor.g = (.6*sphereArray[i].c.g+.4*reflectance.g)*(.4 + (.6*luminosity));
+                tempColor.b = (.6*sphereArray[i].c.b+.4*reflectance.b)*(.4 + (.6*luminosity));
               }
             }
             else
             {
-              tempColor.r = sphereArray[i].c.r*(.4 + (.6*luminosity));
-              tempColor.g = sphereArray[i].c.g*(.4 + (.6*luminosity));
-              tempColor.b = sphereArray[i].c.b*(.4 + (.6*luminosity));
+              tempColor.r = (.6*sphereArray[i].c.r+.4*reflectance.r)*(.4 + (.6*luminosity));
+              tempColor.g = (.6*sphereArray[i].c.g+.4*reflectance.g)*(.4 + (.6*luminosity));
+              tempColor.b = (.6*sphereArray[i].c.b+.4*reflectance.b)*(.4 + (.6*luminosity));
             }
             colorArray[xpx][ypx] = tempColor;
           }
