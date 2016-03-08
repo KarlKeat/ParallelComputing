@@ -431,10 +431,10 @@ int main(int argc, char* argv[])
     filepath = argv[1];
   else
     filepath = "wire.txt";
-  numspheres = 4;
-  //countLines(filepath);
+  //numspheres = 4;
+  countLines(filepath);
   sphereArray = calloc(numspheres + 4, sizeof(sphere));
-  //readFile(filepath);
+  readFile(filepath);
   init();
   makeBoundingBox();
   double render[XRES][YRES] = {0};
