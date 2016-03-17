@@ -434,7 +434,7 @@ int main(int argc, char* argv[])
     readFile(filepath);
   }
   else
-    sphereArray = calloc(numspheres + 4, sizeof(sphere));
+    sphereArray = calloc(4, sizeof(sphere));
   init();
   //makeBoundingBox();
   double render[XRES][YRES] = {0};
