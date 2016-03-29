@@ -148,7 +148,7 @@ double magnitude(triple t)
   return sqrt(pow(t.x,2) + pow(t.y,2) + pow(t.z,2));
 }
 
-void unitVector(triple* t)
+triple unitVector(triple* t)
 {
   double mag = 1/magnitude(*t);
   t -> x *= mag;
@@ -291,16 +291,16 @@ triple relflectCollide(sphere sph, triple vector, triple pix)
     triple ray = {0};
     if(r1 < r2 && r1 > 0)
     {
-      ray.x = pix.x+r1*vector.x;
-      ray.y = pix.y+r1*vector.y;
-      ray.z = pix.z+r1*vector.z;
+      ray.x = r1*vector.x;
+      ray.y = r1*vector.y;
+      ray.z = r1*vector.z;
       return ray;
     }
     else if(r2 > 0)
     {
-      ray.x = pix.x+r2*vector.x;
-      ray.y = pix.y+r2*vector.y;
-      ray.z = pix.z+r2*vector.z;
+      ray.x = r2*vector.x;
+      ray.y = r2*vector.y;
+      ray.z = r2*vector.z;
       return ray;
     }
     return nulltrip;
@@ -311,30 +311,34 @@ triple relflectCollide(sphere sph, triple vector, triple pix)
 
 color calcReflectance(triple pt, int current) // Ray - 2*(Normal dot Ray)*Normal
 {
-  triple center = {sphereArray[current].x, sphereArray[current].y, sphereArray[current].z};
-  triple normal = {0};
-  diff(&normal, pt, center);
+  triple center = {0};
+  center.x = sphereArray[current].x;
+  center.y = sphereArray[current].y;
+  center.z = sphereArray[current].z;
+  triple centerVector = {0};
+  diff(&centerVector, pt, center);
 
-  triple ray = {0};
-  ray.x = pt.x + .0001 * normal.x;
-  ray.y = pt.y + .0001 * normal.y;
-  ray.z = pt.z + .0001 * normal.z;
-  //unitVector(&ray);
-  unitVector(&normal);
+  pt.x += .00001 * centerVector.x;
+  pt.y += .00001 * centerVector.y;
+  pt.z += .00001 * centerVector.z;
+
+  unitVector(&centerVector);
+
+  triple ray = pt;
+  unitVector(&ray);
 
   triple reflection = {0};
-  double scalar = 2*dotProduct(normal, ray);
-  reflection.x = ray.x - scalar*normal.x;
-  reflection.y = ray.y - scalar*normal.y;
-  reflection.z = ray.z - scalar*normal.z;
-  unitVector(&reflection);
+  double scalar = 2*dotProduct(ray, centerVector);
+  reflection.x = ray.x - scalar*centerVector.x;
+  reflection.y = ray.y - scalar*centerVector.y;
+  reflection.z = ray.z - scalar*centerVector.z;
 
   double minMagnitude = 1000000;
   int minSphere = -1;
   int i;
   for(i = 0; i < numspheres + 4; i++)
   {
-    triple collision = relflectCollide(sphereArray[i], reflection, ray);
+    triple collision = relflectCollide(sphereArray[i], reflection, pt);
     if(!isNull(collision) && magnitude(collision) < minMagnitude)
     {
       minMagnitude = magnitude(collision);
@@ -349,18 +353,9 @@ color calcReflectance(triple pt, int current) // Ray - 2*(Normal dot Ray)*Normal
     collision.z += pt.z;
     double luminosity = calcShading(collision, minSphere);
     color tempColor = sphereArray[minSphere].c;
-    if(minSphere == numspheres && !(((int)floor(collision.x*5)%2==0&&(int)floor(collision.z*5)%2!=0)||((int)floor(collision.x*5)%2!=0&&(int)floor(collision.z*5)%2==0)))
-    {
-      tempColor.r = (255-tempColor.r)*(.4 + .6*luminosity);
-      tempColor.g = (255-tempColor.g)*(.4 + .6*luminosity);
-      tempColor.b = (255-tempColor.b)*(.4 + .6*luminosity);
-    }
-    else
-    {
-      tempColor.r = tempColor.r*(.4 + .6*luminosity);
-      tempColor.g = tempColor.g*(.4 + .6*luminosity);
-      tempColor.b = tempColor.b*(.4 + .6*luminosity);
-    }
+    tempColor.r *= (.4 + .6*luminosity);
+    tempColor.g *= (.4 + .6*luminosity);
+    tempColor.b *= (.4 + .6*luminosity);
     return tempColor;
   }
   else
@@ -439,7 +434,7 @@ int main(int argc, char* argv[])
     readFile(filepath);
   }
   else
-    sphereArray = calloc(4, sizeof(sphere));
+    sphereArray = calloc(numspheres + 4, sizeof(sphere));
   init();
   //makeBoundingBox();
   double render[XRES][YRES] = {0};
@@ -462,13 +457,22 @@ int main(int argc, char* argv[])
         {
           render[xpx][ypx] = magnitude(result);
           double luminosity = calcShading(result, i);
-          color reflectance = calcReflectance(result, i);
+          color reflectance = sphereArray[i].c;//calcReflectance(result, i);
           color tempColor = {0};
-          if(i == numspheres && (((int)floor(result.x*5)%2==0&&(int)floor(result.z*5)%2!=0)||((int)floor(result.x*5)%2!=0&&(int)floor(result.z*5)%2==0)))
+          if(i == numspheres)
           {
-            tempColor.r = (255-(.6*sphereArray[i].c.r+.4*reflectance.r))*(.4 + (.6*luminosity));
-            tempColor.g = (255-(.6*sphereArray[i].c.g+.4*reflectance.g))*(.4 + (.6*luminosity));
-            tempColor.b = (255-(.6*sphereArray[i].c.b+.4*reflectance.b))*(.4 + (.6*luminosity));
+            if(((int)floor(result.x*5)%2==0&&(int)floor(result.z*5)%2!=0)||((int)floor(result.x*5)%2!=0&&(int)floor(result.z*5)%2==0))
+            {
+              tempColor.r = (.6*sphereArray[i].c.r+.4*reflectance.r)*(.4 + (.6*luminosity));
+              tempColor.g = (.6*sphereArray[i].c.g+.4*reflectance.g)*(.4 + (.6*luminosity));
+              tempColor.b = (.6*sphereArray[i].c.b+.4*reflectance.b)*(.4 + (.6*luminosity));
+            }
+            else
+            {
+              tempColor.r = (255-(.6*sphereArray[i].c.r+.4*reflectance.r))*(.4 + (.6*luminosity));
+              tempColor.g = (255-(.6*sphereArray[i].c.g+.4*reflectance.g))*(.4 + (.6*luminosity));
+              tempColor.b = (255-(.6*sphereArray[i].c.b+.4*reflectance.b))*(.4 + (.6*luminosity));
+            }
           }
           else
           {

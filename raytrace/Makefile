@@ -1,5 +1,5 @@
-a.out: raytrace_read.c
-	gcc -lm raytrace_read.c
+a.out: raytrace_reflect.c
+	gcc -lm raytrace_reflect.c
 
 clean:
 	rm a.out
