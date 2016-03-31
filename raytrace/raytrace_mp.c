@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <omp.h>
+
+#define N 8
 
 #define XRES 720
 #define YRES 480
@@ -27,14 +30,6 @@ typedef struct sphere
   double r;
   struct color c;
 }sphere;
-
-typedef struct poly
-{
-  struct triple p1;
-  struct triple p2;
-  struct triple p3;
-  struct color c;
-}poly;
 
 typedef struct box
 {
@@ -200,42 +195,6 @@ triple willCollide(sphere sph, triple pix)
     return nulltrip;
 }
 
-triple willCollidePoly(poly p, triple pix)
-{
-  triple vector = {0};
-  diff(&vector, pix, eye);
-  unitVector(&vector);
-
-  double b = 2*(vector.x*(eye.x-sph.x)+vector.y*(eye.y-sph.y)+vector.z*(eye.z-sph.z));
-  double c = pow(eye.x-sph.x,2)+pow(eye.y-sph.y,2)+pow(eye.z-sph.z,2)-pow(sph.r,2);
-
-  double discriminant = pow(b,2) - 4*c;
-
-  if(discriminant >= 0)
-  {
-    double r1 = (-b - sqrt(pow(b,2)-4*c))/2.0;
-    double r2 = (-b + sqrt(pow(b,2)-4*c))/2.0;
-    triple ray = {0};
-    if(r1 < r2 && r1 > 0)
-    {
-      ray.x = eye.x + r1*vector.x;
-      ray.y = eye.y + r1*vector.y;
-      ray.z = eye.z + r1*vector.z;
-      return ray;
-    }
-    else if(r2 > 0)
-    {
-      ray.x = eye.x + r2*vector.x;
-      ray.y = eye.y + r2*vector.y;
-      ray.z = eye.z + r2*vector.z;
-      return ray;
-    }
-    return nulltrip;
-  }
-  else
-    return nulltrip;
-}
-
 triple shadeCollide(sphere sph, triple pix)
 {
   triple vector = {0};
@@ -272,41 +231,19 @@ triple shadeCollide(sphere sph, triple pix)
     return nulltrip;
 }
 
-triple shadeCollidePoly(poly p, triple pix)
+int boxCollide(sphere sph, triple pix)
 {
   triple vector = {0};
   diff(&vector, light, pix);
   unitVector(&vector);
 
-  double b = 2*(vector.x*(pix.x-sph.x)+vector.y*(pix.y-sph.y)+vector.z*(pix.z-sph.z));
-  double c = pow(pix.x-sph.x,2)+pow(pix.y-sph.y,2)+pow(pix.z-sph.z,2)-pow(sph.r,2);
+  double tFar = -1000000;
+  double tNear = 1000000;
 
-  double discriminant = pow(b,2) - 4*c;
 
-  if(discriminant >= 0)
-  {
-    double r1 = (-b - sqrt(pow(b,2)-4*c))/2.0;
-    double r2 = (-b + sqrt(pow(b,2)-4*c))/2.0;
-    triple ray = {0};
-    if(r1 < r2 && r1 > 0)
-    {
-      ray.x = pix.x + r1*vector.x;
-      ray.y = pix.y + r1*vector.y;
-      ray.z = pix.z + r1*vector.z;
-      return ray;
-    }
-    else if(r2 > 0)
-    {
-      ray.x = pix.x + r2*vector.x;
-      ray.y = pix.y + r2*vector.y;
-      ray.z = pix.z + r2*vector.z;
-      return ray;
-    }
-    return nulltrip;
-  }
-  else
-    return nulltrip;
+  return 0;
 }
+
 
 double calcShading(triple pt, int current)
 {
@@ -342,42 +279,6 @@ double calcShading(triple pt, int current)
   }
   return 0;
 }
-
-double calcShadingPoly(triple pt, int current)
-{
-  //printf("%f, %f, %f\n", pt.x, pt.y, pt.z);
-  triple center = {0};
-  center.x = sphereArray[current].x;
-  center.y = sphereArray[current].y;
-  center.z = sphereArray[current].z;
-  triple centerVector = {0};
-  diff(&centerVector, pt, center);
-  unitVector(&centerVector);
-  pt.x += .000001 * centerVector.x;
-  pt.y += .000001 * centerVector.y;
-  pt.z += .000001 * centerVector.z;
-
-  triple pointVector = {0};
-  diff(&pointVector, light, pt);
-
-  int i;
-  for(i = 0; i < numspheres + 4; i++)
-  {
-    triple collision = shadeCollide(sphereArray[i], pt);
-    if(!isNull(collision))
-    {
-      return 0;
-    }
-  }
-  unitVector(&pointVector);
-  double result = dotProduct(pointVector, centerVector);
-  if(result > 0)
-  {
-    return result;
-  }
-  return 0;
-}
-
 
 double min(double a, double b)
 {
@@ -439,6 +340,8 @@ void printSphere(sphere s)
 
 int main(int argc, char* argv[])
 {
+  int tid, nthreads;
+
   numspheres = 0;
   if(argc == 2)
   {
@@ -456,14 +359,18 @@ int main(int argc, char* argv[])
   color blank = {0, 0, 0};
 
   int i;
+
+  omp_set_num_threads(N);
+  #pragma omp parallel for private(tid)
   for(i = 0; i < numspheres + 4; i++)
   {
-    int xpx = 0;
-    int ypx = 0;
-    double x, y;
-    for(y = 0; y < 1.0; y+=1.0/YRES)
+    int xpx,ypx;
+    double y = 0;
+    double x = 0;
+    //#pragma omp parallel for private(tid, x, y, xpx, ypx)
+    for(ypx = 0; ypx < YRES; ypx++)
     {
-      for(x = 0; x < 1.5; x+=1.5/XRES)
+      for(xpx = 0; xpx < XRES; xpx++)
       {
         triple temp = {x, y, 0};
         triple result = willCollide(sphereArray[i], temp);
@@ -496,10 +403,10 @@ int main(int argc, char* argv[])
           }
           colorArray[xpx][ypx] = tempColor;
         }
-        xpx++;
+        x+=1.5/XRES;
       }
-      xpx = 0;
-      ypx++;
+      x=0;
+      y+=1.0/YRES;
     }
   }
 
