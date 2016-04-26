@@ -32,7 +32,7 @@ int main()
     binaryTree[x] = (int*)malloc(num * sizeof(int));
   }
 
-  int nums[8] = {2, 4, 6, 3, 4, 1, 0, 2};
+  int nums[8] = {1, 0, 1, 0, 0, 1, 1, 0};
 
   int numvalues = num;
 
@@ -76,6 +76,36 @@ int main()
     numnodes *= 2;
   }
 
+  int* compact = (int*)malloc(num * sizeof(int));
+  int* nearest = (int*)malloc(num * sizeof(int));
+
+  #pragma omp parallel
+  for(y = 0; y < num; y++)
+  {
+    if(binaryTree[height-1][y] == 1)
+    {
+      compact[prefixsums[height-1][y]-1] = y;
+    }
+  }
+  for(y = 0; y < num; y++ )
+  {
+    int min = 0;
+    for(x = 0; x<num; x++)
+    {
+      if(abs(y-compact[x])<abs(y-compact[min]))
+      {
+        min = x;
+      }
+    }
+    nearest[y] = min;
+  }
+
+
+  for(x = 0; x < num; x++)
+    printf("%d ", compact[x]);
+  puts("");
+
+
   for(x = 0; x < height; x++)
   {
     for(y = 0; y < pow(2, x); y++)
@@ -89,6 +119,9 @@ int main()
       printf("%d ", prefixsums[x][y]);
     printf("\n");
   }
+  puts("");
+  for(x = 0; x < num; x++)
+    printf("%d ", nearest[x]);
   puts("");
 /**
   for(x = (int)pow(2, height) - 1; x < (int)pow(2, height) + num; x++)
