@@ -21,39 +21,39 @@ __global__ void parallel2(int a, int** binaryTree, int** prefixsums) //pow(2, x)
 }
 int main()
 {
-const int num = 8;
+  const int num = 8;
 
-int height;
-int binaryTreeSize = 0;
-if(num%2 == 0)
-{
-    binaryTreeSize = 2*num - 1;
-    height = (int)(log2((float)binaryTreeSize+2) + .5);
-}
-else
-{
-    binaryTreeSize = 2*num;
-    height = (int)(log2((float)binaryTreeSize+1) + .5);
-}
+  int height;
+  int binaryTreeSize = 0;
+  if(num%2 == 0)
+  {
+      binaryTreeSize = 2*num - 1;
+      height = (int)(log2((float)binaryTreeSize+2) + .5);
+  }
+  else
+  {
+      binaryTreeSize = 2*num;
+      height = (int)(log2((float)binaryTreeSize+1) + .5);
+  }
 
-printf("%d\n", height);
+  printf("%d\n", height);
 
-int x, y;
-//Instantiate tree
-int** binaryTree = (int**)malloc(height * sizeof(int*));
-for(x = 0; x < height; x++)
-{
-    binaryTree[x] = (int*)malloc(num * sizeof(int));
-}
-int** prefixsums = (int**)malloc(height * sizeof(int*));
-for(x = 0; x < height; x++)
-{
-    prefixsums[x] = (int*)malloc(num * sizeof(int));
-}
+  int x, y;
+  //Instantiate tree
+  int** binaryTree;
+  cudaMalloc(&binaryTree, height * sizeof(int*));
+  for(x = 0; x < height; x++)
+  {
+      cudaMalloc(&binaryTree[x], num * sizeof(int));
+  }
+  int** prefixsums;
+  cudaMalloc(&prefixsums, height * sizeof(int*));
+  for(x = 0; x < height; x++)
+  {
+      cudaMalloc(&prefixsums[x], num * sizeof(int));
+  }
 
   int nums[8] = {2, 4, 6, 3, 4, 1, 0, 2};
-
-  int numvalues = num;
 
   for(x = 0; x < num; x++)
   {
